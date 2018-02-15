@@ -1,0 +1,98 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Feb 05 11:09:56 2018
+
+@author: jmo115
+"""
+from astropy.io import fits
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+
+def circle(array, x,y,radius):
+    cx, cy = x,y #
+    y,x = np.ogrid[-radius: radius, -radius: radius]
+    index = x**2 + y**2 <= radius**2
+    array[cy-radius:cy+radius, cx-radius:cx+radius][index] = 0
+    
+    #plt.imshow(array, cmap = 'gist_gray', origin = [0,0])
+
+hdulist = fits.open("mosaic.fit")
+
+header = hdulist[0].header
+print(type(header))
+print(header['NAXIS1'])
+
+data = hdulist[0].data
+
+#mask=np.ones((4611,2570))
+
+data[:,1425:1448]=0 #main vertical line
+data[:,0:126]=0 #left side
+data[:,2464:2569]=0 #right side
+data[4518:,:115]=0 #top left square
+data[:102,:]=0
+
+#mask[2223:2356,901:909]=0 #3rd left star
+#mask[2243:2325,863:944]=0
+
+#mask[2704:2835,968:978]=0 #second left star
+#mask[2740:2813,933:1011]=0 #big square
+#mask[2800:2819,979:996]=1 #galaxy next to star
+
+#mask[3203:3418,770:781]=0 #first star
+#mask[3264:3369,721:825]=0
+
+#mask[0:5,969:1718]=0 #botton first 2 lines, rectangle
+#mask[5:25,1201:1578]=0
+data[0:486,969:1718]=0 #lines at bottom of picture
+
+circle(data,2134,3747,60) #top right
+circle(data,2090,1426,45) #bottom right
+circle(data, 1440,3216,300) #big centre
+
+circle(data,1460,4032,35) #small centre top 4 #
+circle(data,1314,4401,25) #small top centre 2 #
+circle(data,1367,4332,25) #small top centre 3 #
+circle(data,1677,4498,18) #small centre top 1 #
+
+circle(data,360,2432,25) #left centre small 1 #
+circle(data, 447, 2303, 30) #left centre small 2 #
+circle(data,669,2357,19) #left centre small 3 #
+
+circle(data,906,2286,65) #med centre left lowest #
+data[2223:2356,901:909]=0 #rect
+
+circle(data,976,2773,70) #med centre left mid #
+circle(data,775,3304,120) #med centre left top #
+
+circle(data, 2135,2311,36) #mid centre right #
+
+circle(data,55,4274,20)
+circle(data,560,4098,17)
+circle(data,974,2774,70)
+circle(data,2468,3414,30)
+data[423:451,1024:1045]=0
+
+circle(data,635,1495,35)
+circle(data,969,1655,25)
+circle(data,1002,1690,20)
+
+
+#top 
+data[4514:,:]=0
+data[4212:,2478:]=0
+
+#print(type(data))
+#print(data.shape)
+
+#print(np.argmax(data, axis=None))
+#data1 = data*mask
+
+plt.imshow(data, cmap='gray')
+plt.colorbar()
+plt.show()
+
+hdu = fits.PrimaryHDU(data)
+hdul = fits.HDUList([hdu])
+hdul.writeto('mosaic_masked6.fits')
