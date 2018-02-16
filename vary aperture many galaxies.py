@@ -1,0 +1,140 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Feb 09 10:21:14 2018
+
+@author: jmo115
+"""
+
+from astropy.io import fits
+from astropy.io import ascii
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+
+#import xlsxwriter
+
+def circle(array, x,y,radius):
+    cx, cy = x,y #
+    y,x = np.ogrid[-radius: radius, -radius: radius]
+    index = x**2 + y**2 <= radius**2
+    return array[cy-radius:cy+radius, cx-radius:cx+radius][index]
+    #array[cy-radius:cy+radius, cx-radius:cx+radius][index] =0
+    
+def resolve_galaxy(array, x,y,radius):
+    cx, cy = x,y #
+    y,x = np.ogrid[-radius: radius, -radius: radius]
+    index = x**2 + y**2 <= radius**2
+    array[cy-radius:cy+radius, cx-radius:cx+radius][index] = 0
+    
+def numberOfNonNans(data):
+    count = 0
+    for i in data:
+        if not np.isnan(i):
+            count += 1
+    return count 
+    
+hdulist = fits.open("mosaic.fit")
+header = hdulist[0].header
+zeropoint=header['MAGZPT']
+
+hdulist = fits.open('mosaic_masked7.fits')
+data = hdulist[0].data
+
+#catalogue=np.array
+catalogue=['x','y','r','size','maximum','background','flux','mag']
+#catalogue=np.vstack((catalogue,cataloguetitle))
+
+#data_nan=data
+data=data.astype(float)
+data[data==0]=np.nan
+
+for n in range(0,500):
+    data=data.astype(float)
+    data[data==0]=np.nan
+    
+    maxlocation_data=np.where(data == np.nanmax(data))
+    
+    y0=maxlocation_data[0][0]
+    x0=maxlocation_data[1][0]
+    x=x0
+    y=y0
+    i=data[y0,x0]
+   # print 'x,y=',x0,y0
+    
+    galaxy=circle(data,x0,y0,6)
+    
+    background=np.nanmedian(data[y0-150:y0+150,x0-150:x0+150])
+    #print 'background=',background
+    
+    while (i > background and i != 'nan'):
+        i=data[y,x]
+        x+=1
+        
+    r1=x
+    
+    x=x0
+    y=y0   
+    i=data[y,x]
+    
+    while (i > background and i != 'nan'):
+        i=data[y,x]
+        y+=1
+    
+    r2=y
+    
+    x=x0
+    y=y0   
+    i=data[y,x]
+    
+    while (i > background and i != 'nan'):
+        i=data[y,x]
+        x-=1
+        
+    r3=x
+    
+    x=x0
+    y=y0   
+    i=data[y,x]
+    
+    while (i > background and i != 'nan'):
+        i=data[y,x]
+        y-=1
+    
+    r4=y
+    
+    r=np.mean([r1-x0,r2-y0,x0-r3,y0-r4])
+    r=np.floor(r)
+    if r < 6 :
+        r = 6
+    elif r > 80 :
+        r = 80
+    #print 'radius=',r
+    galaxy = circle(data,x0,y0,r)
+    #print galaxy
+    
+    #size=np.isnan(galaxy)[np.isnan(galaxy) == False].size
+    size= numberOfNonNans(galaxy)
+    flux = np.nansum(galaxy)-size*background
+    #print 'flux=',flux
+    m=zeropoint-2.5*np.log10(flux)
+    #print 'mag=',m
+    
+    galaxy_row=[x0, y0, r, len(galaxy), np.nanmax(data), background, flux, m]    
+    catalogue=np.vstack((catalogue, galaxy_row))
+    
+    resolve_galaxy(data,x0,y0,r)
+    #print '.'
+    print n
+    n+=1
+    
+#print catalogue
+#table={'x':catalogue[0],'y':catalogue[1],'r':catalogue[2],'size':catalogue[3],'maximum':catalogue[4],'background':catalogue[5],'flux':catalogue[6],'mag':catalogue[7]}
+#ascii.write(catalogue, 'galaxies2.dat', delimiter='\t' )
+
+
+data[data==np.nan]=0
+hdu = fits.PrimaryHDU(data)
+hdul = fits.HDUList([hdu])
+hdul.writeto('500galaxies3_300background.fits')    
+hdulist.close()
+
